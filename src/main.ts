@@ -1,4 +1,4 @@
-import express, { application } from "express";
+import express, { application, RequestHandler } from "express";
 import { v4 as uuid } from "uuid";
 
 const server = express();
@@ -46,6 +46,29 @@ server.post("/user", (req, res) => {
         ok: true,
         message: "User created sucessfully",
         data: novoUser,
+    });
+});
+
+type RequestUserType = RequestHandler & { user: UserType };
+
+const checkExistsUserAccount: RequestHandler = (req, res, next) => {
+    const { username } = req.headers as { username: string };
+    const user = allUsers.find((usr) => usr.username === username);
+
+    if (!user)
+        return res.status(400).json({ ok: false, error: "User not exists" });
+
+    (req as unknown as RequestUserType).user = user;
+
+    next();
+};
+
+server.get("/technologies", checkExistsUserAccount, (req, res) => {
+    const { user } = req as unknown as RequestUserType;
+    res.status(200).json({
+        ok: true,
+        message: "All technologies",
+        data: user.tencologies,
     });
 });
 
