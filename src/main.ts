@@ -119,13 +119,11 @@ server.put("/technologies/:id", checkExistsUserAccount, (req, res) => {
     // changing state
     allUsers[indexUser].technologies[indexTech] = updatedTechnology;
 
-    return res
-        .status(200)
-        .json({
-            ok: true,
-            message: "Technology updated successfully!",
-            data: updatedTechnology,
-        });
+    return res.status(200).json({
+        ok: true,
+        message: "Technology updated successfully!",
+        data: updatedTechnology,
+    });
 });
 
 server.patch(
@@ -156,6 +154,34 @@ server.patch(
         });
     },
 );
+
+server.delete("/technologies/:id", checkExistsUserAccount, (req, res) => {
+    const { user } = req as unknown as RequestUserType;
+    const { id } = req.params;
+
+    const indexUser = allUsers.findIndex((usr) => usr.id == user.id)!;
+    const indexTech = allUsers[indexUser].technologies.findIndex(
+        (tech) => tech.id === id,
+    );
+
+    if (indexTech < 0) {
+        return res
+            .status(404)
+            .json({ ok: false, error: "Technology not found!" });
+    }
+
+    const updatedTechnologies = allUsers[indexUser].technologies.filter(
+        (tech) => tech.id != id,
+    );
+
+    allUsers[indexUser].technologies = updatedTechnologies;
+
+    res.status(200).json({
+        ok: true,
+        message: "Technology removed successfully!",
+        data: updatedTechnologies,
+    });
+});
 
 const PORT = 3333;
 server.listen(PORT, () => console.log(`Listening on port: ${PORT}`));
