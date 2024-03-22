@@ -6,6 +6,7 @@ server.use(express.json());
 
 //types
 type TechnologyType = {
+    id: string;
     title: string;
     studied: boolean;
     deadline: Date;
@@ -16,13 +17,13 @@ type UserType = {
     id: string;
     name: string;
     username: string;
-    tencologies: TechnologyType[];
+    technologies: TechnologyType[];
 };
 
 // state
 const allUsers: UserType[] = [];
 
-server.post("/user", (req, res) => {
+server.post("/users", (req, res) => {
     const { name, username } = req.body as { name: string; username: string };
 
     // checking if user already exits
@@ -37,7 +38,7 @@ server.post("/user", (req, res) => {
         id: uuid(),
         name,
         username,
-        tencologies: [],
+        technologies: [],
     };
 
     allUsers.push(novoUser);
@@ -50,6 +51,7 @@ server.post("/user", (req, res) => {
 });
 
 type RequestUserType = RequestHandler & { user: UserType };
+type RequestBodyTechnology = { title: string; deadline: string };
 
 const checkExistsUserAccount: RequestHandler = (req, res, next) => {
     const { username } = req.headers as { username: string };
@@ -68,9 +70,92 @@ server.get("/technologies", checkExistsUserAccount, (req, res) => {
     res.status(200).json({
         ok: true,
         message: "All technologies",
-        data: user.tencologies,
+        data: user.technologies,
     });
 });
+
+server.post("/technologies", checkExistsUserAccount, (req, res) => {
+    const { user } = req as unknown as RequestUserType;
+    const { title, deadline } = req.body as RequestBodyTechnology;
+
+    const newTechnology: TechnologyType = {
+        id: uuid(),
+        title,
+        deadline: new Date(deadline),
+        created_at: new Date(),
+        studied: false,
+    };
+
+    const indexUser = allUsers.findIndex((usr) => usr.id == user.id)!;
+
+    allUsers[indexUser].technologies.push(newTechnology);
+
+    res.status(201).json({ ok: true, data: newTechnology });
+});
+
+server.put("/technologies/:id", checkExistsUserAccount, (req, res) => {
+    const { user } = req as unknown as RequestUserType;
+    const { id } = req.params;
+    const { title, deadline } = req.body as RequestBodyTechnology;
+
+    const indexUser = allUsers.findIndex((usr) => usr.id == user.id)!;
+    const indexTech = allUsers[indexUser].technologies.findIndex(
+        (tech) => tech.id === id,
+    );
+
+    if (indexTech < 0) {
+        return res
+            .status(404)
+            .json({ ok: false, error: "Technology not found!" });
+    }
+
+    const technology = allUsers[indexUser].technologies[indexTech];
+    const updatedTechnology = {
+        ...technology,
+        title,
+        deadline: new Date(deadline),
+    };
+
+    // changing state
+    allUsers[indexUser].technologies[indexTech] = updatedTechnology;
+
+    return res
+        .status(200)
+        .json({
+            ok: true,
+            message: "Technology updated successfully!",
+            data: updatedTechnology,
+        });
+});
+
+server.patch(
+    "/technologies/:id/studied",
+    checkExistsUserAccount,
+    (req, res) => {
+        const { user } = req as unknown as RequestUserType;
+        const { id } = req.params;
+
+        const indexUser = allUsers.findIndex((usr) => usr.id == user.id)!;
+        const indexTech = allUsers[indexUser].technologies.findIndex(
+            (tech) => tech.id === id,
+        );
+
+        if (indexTech < 0) {
+            return res
+                .status(404)
+                .json({ ok: false, error: "Technology not found!" });
+        }
+
+        // changing state
+        allUsers[indexUser].technologies[indexTech].studied = true;
+
+        return res.status(200).json({
+            ok: true,
+            message: "Technology 'studied' modified successfully!",
+            data: allUsers[indexUser].technologies[indexTech],
+        });
+    },
+);
 
 const PORT = 3333;
 server.listen(PORT, () => console.log(`Listening on port: ${PORT}`));
